@@ -1,185 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Graph DFS Visualizer</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: #0d1117;
-    color: #e6edf3;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  header {
-    background: #161b22;
-    border-bottom: 1px solid #30363d;
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-shrink: 0;
-  }
-  header h1 { font-size: 1.1rem; font-weight: 600; color: #58a6ff; }
-  header p  { font-size: 0.78rem; color: #8b949e; }
-  .app {
-    display: grid;
-    grid-template-columns: 300px 1fr 260px;
-    flex: 1;
-    min-height: 0;
-  }
-  .panel {
-    background: #161b22;
-    border-right: 1px solid #30363d;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .panel:last-child { border-right: none; border-left: 1px solid #30363d; }
-  .panel-header {
-    padding: 10px 14px;
-    background: #1c2128;
-    border-bottom: 1px solid #30363d;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #8b949e;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-  }
-  .panel-body { padding: 14px; overflow-y: auto; flex: 1; }
-  .canvas-wrap {
-    display: flex;
-    flex-direction: column;
-    background: #0d1117;
-    position: relative;
-  }
-  canvas { flex: 1; width: 100%; height: 100%; display: block; cursor: default; }
-  .controls {
-    background: #161b22;
-    border-top: 1px solid #30363d;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-  .controls .group { display: flex; align-items: center; gap: 6px; }
-  .controls .sep { width: 1px; height: 24px; background: #30363d; margin: 0 4px; }
-  button {
-    font: inherit;
-    cursor: pointer;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: 5px 12px;
-    font-size: 0.82rem;
-    background: #21262d;
-    color: #e6edf3;
-    transition: background .15s, border-color .15s;
-    white-space: nowrap;
-  }
-  button:hover { background: #30363d; border-color: #484f58; }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  button.primary  { background: #238636; border-color: #2ea043; }
-  button.primary:hover { background: #2ea043; }
-  button.danger   { background: #da3633; border-color: #f85149; }
-  button.danger:hover  { background: #f85149; }
-  button.active   { background: #1f6feb; border-color: #388bfd; }
-  select, textarea {
-    font: inherit;
-    background: #0d1117;
-    color: #e6edf3;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    font-size: 0.82rem;
-  }
-  select { padding: 4px 8px; cursor: pointer; }
-  select:focus, textarea:focus { outline: none; border-color: #388bfd; }
-  textarea {
-    width: 100%;
-    resize: vertical;
-    padding: 8px;
-    min-height: 90px;
-    font-family: 'Consolas', monospace;
-    font-size: 0.78rem;
-    line-height: 1.5;
-  }
-  input[type=range] {
-    -webkit-appearance: none;
-    height: 4px;
-    border-radius: 2px;
-    border: none;
-    background: #30363d;
-    cursor: pointer;
-    width: 90px;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: #388bfd;
-    cursor: pointer;
-  }
-  label { font-size: 0.78rem; color: #8b949e; display: block; margin-bottom: 4px; }
-  .field { margin-bottom: 12px; }
-  #log {
-    font-family: 'Consolas', monospace;
-    font-size: 0.75rem;
-    line-height: 1.6;
-    color: #8b949e;
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px 14px;
-  }
-  #log .entry { border-bottom: 1px solid #21262d; padding: 2px 0; }
-  #log .entry.highlight { color: #58a6ff; }
-  #log .entry.done      { color: #3fb950; }
-  #log .entry.err       { color: #f85149; }
-  #log .entry.info      { color: #d29922; }
-  .legend { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-top: 1px solid #30363d; }
-  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #8b949e; }
-  .legend-dot  { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(255,255,255,.15); }
-  #status { font-size: 0.75rem; color: #8b949e; margin-left: auto; white-space: nowrap; }
-  #tooltip {
-    position: fixed;
-    background: #1c2128;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 0.78rem;
-    pointer-events: none;
-    display: none;
-    z-index: 100;
-    color: #e6edf3;
-  }
-  .badge {
-    display: inline-block;
-    background: #1f6feb33;
-    color: #58a6ff;
-    border: 1px solid #1f6feb66;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    padding: 1px 6px;
-    margin-left: 4px;
-  }
-  .bugs-list { margin-top: 6px; font-size: 0.74rem; color: #8b949e; line-height: 1.8; }
-  .bugs-list li { margin-left: 14px; list-style: disc; }
-  .bugs-list li span { color: #3fb950; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graph DFS Visualizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; color: #58a6ff; }
+    header p  { font-size: 0.78rem; color: #8b949e; }
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr 260px;
+      flex: 1;
+      min-height: 0;
+    }
+    .panel {
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel:last-child { border-right: none; border-left: 1px solid #30363d; }
+    .panel-header {
+      padding: 10px 14px;
+      background: #1c2128;
+      border-bottom: 1px solid #30363d;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .panel-body { padding: 14px; overflow-y: auto; flex: 1; }
+    .canvas-wrap {
+      display: flex;
+      flex-direction: column;
+      background: #0d1117;
+      position: relative;
+    }
+    canvas { flex: 1; width: 100%; height: 100%; display: block; cursor: default; }
+    .controls {
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .controls .group { display: flex; align-items: center; gap: 6px; }
+    .controls .sep { width: 1px; height: 24px; background: #30363d; margin: 0 4px; }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.82rem;
+      background: #21262d;
+      color: #e6edf3;
+      transition: background .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    button:hover { background: #30363d; border-color: #484f58; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary  { background: #238636; border-color: #2ea043; }
+    button.primary:hover { background: #2ea043; }
+    button.danger   { background: #da3633; border-color: #f85149; }
+    button.danger:hover  { background: #f85149; }
+    button.active   { background: #1f6feb; border-color: #388bfd; }
+    select, textarea {
+      font: inherit;
+      background: #0d1117;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+    select { padding: 4px 8px; cursor: pointer; }
+    select:focus, textarea:focus { outline: none; border-color: #388bfd; }
+    textarea {
+      width: 100%;
+      resize: vertical;
+      padding: 8px;
+      min-height: 90px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      border: none;
+      background: #30363d;
+      cursor: pointer;
+      width: 90px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #388bfd;
+      cursor: pointer;
+    }
+    label { font-size: 0.78rem; color: #8b949e; display: block; margin-bottom: 4px; }
+    .field { margin-bottom: 12px; }
+    #log {
+      font-family: 'Consolas', monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: #8b949e;
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+    }
+    #log .entry { border-bottom: 1px solid #21262d; padding: 2px 0; }
+    #log .entry.highlight { color: #58a6ff; }
+    #log .entry.done      { color: #3fb950; }
+    #log .entry.err       { color: #f85149; }
+    #log .entry.info      { color: #d29922; }
+    .legend { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-top: 1px solid #30363d; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #8b949e; }
+    .legend-dot  { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(255,255,255,.15); }
+    #status { font-size: 0.75rem; color: #8b949e; margin-left: auto; white-space: nowrap; }
+    #tooltip {
+      position: fixed;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      display: none;
+      z-index: 100;
+      color: #e6edf3;
+    }
+    .badge {
+      display: inline-block;
+      background: #1f6feb33;
+      color: #58a6ff;
+      border: 1px solid #1f6feb66;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      margin-left: 4px;
+    }
+    .intro {
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: #8b949e;
+      margin-top: 8px;
+    }
+    .explain {
+      margin-top: 12px;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: #c9d1d9;
+    }
+    .explain strong { color: #e6edf3; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  </style>
 </head>
 <body>
 
 <header>
   <div>
     <h1>Graph DFS Visualizer <span class="badge">Web Port</span></h1>
-    <p>Interactive port of BC++ / BGI graph DFS program (UNIVER/GRAPH) — 8 bugs fixed</p>
+    <p class="intro">Interactive depth-first search visualizer for undirected graphs. Enter a graph, choose a layout, and follow each DFS step as nodes move from unvisited to active to finished.</p>
   </div>
 </header>
 
@@ -225,17 +235,12 @@
 
       <hr style="border-color:#30363d;margin:14px 0">
 
-      <label>Bugs fixed vs. original C code</label>
-      <ul class="bugs-list">
-        <li><span>✔</span> Edge count header mismatch — actual token count used</li>
-        <li><span>✔</span> <code>fscanf("%c %c\n")</code> broke on inline edges — tokenised correctly</li>
-        <li><span>✔</span> <code>atan(dy/(dx+0.01))</code> near-vertical divide — replaced with <code>atan2</code></li>
-        <li><span>✔</span> <code>malloc</code> without <code>free</code> memory leaks — JS GC</li>
-        <li><span>✔</span> Writing to string literal (UB): <code>tmp=" "; tmp[0]=…</code></li>
-        <li><span>✔</span> Global <code>x,y</code> declared twice — all state in objects</li>
-        <li><span>✔</span> Disconnected components skipped — outer loop handles all</li>
-        <li><span>✔</span> Node coords <code>%630/%460</code> clipped off-screen — mapped to canvas</li>
-      </ul>
+      <label>What it visualizes</label>
+      <div class="explain">
+        This tool shows a graph as a set of nodes connected by edges. The <strong>depth-first search (DFS)</strong> algorithm starts at a node, explores each neighbor recursively, and marks nodes as <strong>unvisited</strong>, <strong>active</strong>, or <strong>finished</strong> as it traverses the structure.
+        <br><br>
+        The visualization highlights the <strong>current node</strong>, the <strong>search path</strong>, and the <strong>tree/back edges</strong> so you can see how DFS progresses through connected components.
+      </div>
     </div>
   </div>
 
