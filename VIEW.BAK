@@ -1,0 +1,84 @@
+#include <iostream.h>
+#include <conio.h>
+#include <stdlib.h>
+#include <graphics.h>
+#include <string.h>
+#include <dos.h>
+#include <math.h>
+#include "coord.h"
+
+void init_graphics(void)
+{
+
+   /* request auto detection */
+   int gdriver = DETECT, gmode, errorcode;
+   /* initialize graphics and local variables */
+   initgraph(&gdriver, &gmode, "");
+
+   /* read result of initialization */
+   errorcode = graphresult();
+   /* an error occurred */
+   if (errorcode != grOk)
+   {
+      cout<<"Graphics error: "<<grapherrormsg(errorcode)<<endl;
+      cout<<"Press any key to halt:";
+      cin.get();
+      exit(1);
+   }
+      cleardevice();
+
+}
+
+void draw_node(int x,int y ,char* data,unsigned color)
+{
+   setcolor(10);
+   circle(x,y,10);
+   setfillpattern(EMPTY_FILL,0);
+   floodfill(x,y,10);
+   setcolor(color);
+ if(strlen(data)==1)  outtextxy(x-3,y-3,data);
+    else
+    outtextxy(x-8,y-3,data);
+
+}
+p_to_coord  make_coordinats(int num)
+{
+   int ff,ss;
+    p_to_coord pp= (struct two_coord *) malloc(sizeof(struct two_coord));
+   ff = (num)%vert_count_in_line;
+   if (ff==0) ff = vert_count_in_line;
+   ss = 1+(int)(num-ff)/vert_count_in_line;
+      if(ff==1) pp->coord_x=15;
+    else pp->coord_x=((ff-1)*adge_length)%630;
+   if(ss==1) pp->coord_y=15;
+     else pp->coord_y=((ss-1)*adge_length)%460;
+     return pp;
+
+}
+ void p_to_connect(int x1,int y1,int x2,int y2,int color)
+ {
+    float angle ;
+    int x_c,y_c;
+    angle = abs(atan((y1-y2+0.01)/(x1-x2+0.01)));
+     x_c = (x1+x2)/2;
+     y_c = (y1+y2)/2;
+   moveto(x_c,y_c);
+   setcolor(0);
+   linerel(Dist*sin(angle+M_PI_2),Dist*sin(angle+M_PI_2));
+      setcolor(color);
+ }
+ void connect_vertexes(int x1,int y1,int x2,int y2)
+ {
+	if((x1==x2)&(y1==y2)) moveto(x1,y1);
+	else {
+	line(x1,y1,getx(),gety());
+	line(getx(),gety(),x2,y2);
+	}
+ }
+int get_curr_x(void){
+return getx();
+}
+int get_curr_y(void){
+return gety();
+}
+

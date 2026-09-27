@@ -1,0 +1,30 @@
+#include <graphics.h>
+#include <stdlib.h>
+#include <iostream.h>
+
+
+
+void init_graphics(void)
+{
+
+   /* request auto detection */
+   int gdriver = DETECT, gmode, errorcode;
+   /* initialize graphics and local variables */
+   initgraph(&gdriver, &gmode, "");
+
+   /* read result of initialization */
+   errorcode = graphresult();
+   /* an error occurred */
+   if (errorcode != grOk)
+   {
+      cout<<"Graphics error: "<<grapherrormsg(errorcode)<<endl;
+      cout<<"Press any key to halt:";
+      cin.get();
+      exit(1);
+   }
+      cleardevice();
+
+}
+void main(void){
+init_graphics();
+}

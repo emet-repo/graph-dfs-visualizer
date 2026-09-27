@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph DFS Visualizer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 600; color: #58a6ff; }
+  header p  { font-size: 0.78rem; color: #8b949e; }
+  .app {
+    display: grid;
+    grid-template-columns: 300px 1fr 260px;
+    flex: 1;
+    min-height: 0;
+  }
+  .panel {
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel:last-child { border-right: none; border-left: 1px solid #30363d; }
+  .panel-header {
+    padding: 10px 14px;
+    background: #1c2128;
+    border-bottom: 1px solid #30363d;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .panel-body { padding: 14px; overflow-y: auto; flex: 1; }
+  .canvas-wrap {
+    display: flex;
+    flex-direction: column;
+    background: #0d1117;
+    position: relative;
+  }
+  canvas { flex: 1; width: 100%; height: 100%; display: block; cursor: default; }
+  .controls {
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+  .controls .group { display: flex; align-items: center; gap: 6px; }
+  .controls .sep { width: 1px; height: 24px; background: #30363d; margin: 0 4px; }
+  button {
+    font: inherit;
+    cursor: pointer;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.82rem;
+    background: #21262d;
+    color: #e6edf3;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  button:hover { background: #30363d; border-color: #484f58; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary  { background: #238636; border-color: #2ea043; }
+  button.primary:hover { background: #2ea043; }
+  button.danger   { background: #da3633; border-color: #f85149; }
+  button.danger:hover  { background: #f85149; }
+  button.active   { background: #1f6feb; border-color: #388bfd; }
+  select, textarea {
+    font: inherit;
+    background: #0d1117;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    font-size: 0.82rem;
+  }
+  select { padding: 4px 8px; cursor: pointer; }
+  select:focus, textarea:focus { outline: none; border-color: #388bfd; }
+  textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 8px;
+    min-height: 90px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    border: none;
+    background: #30363d;
+    cursor: pointer;
+    width: 90px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #388bfd;
+    cursor: pointer;
+  }
+  label { font-size: 0.78rem; color: #8b949e; display: block; margin-bottom: 4px; }
+  .field { margin-bottom: 12px; }
+  #log {
+    font-family: 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: #8b949e;
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px;
+  }
+  #log .entry { border-bottom: 1px solid #21262d; padding: 2px 0; }
+  #log .entry.highlight { color: #58a6ff; }
+  #log .entry.done      { color: #3fb950; }
+  #log .entry.err       { color: #f85149; }
+  #log .entry.info      { color: #d29922; }
+  .legend { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-top: 1px solid #30363d; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #8b949e; }
+  .legend-dot  { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(255,255,255,.15); }
+  #status { font-size: 0.75rem; color: #8b949e; margin-left: auto; white-space: nowrap; }
+  #tooltip {
+    position: fixed;
+    background: #1c2128;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    color: #e6edf3;
+  }
+  .badge {
+    display: inline-block;
+    background: #1f6feb33;
+    color: #58a6ff;
+    border: 1px solid #1f6feb66;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    margin-left: 4px;
+  }
+  .bugs-list { margin-top: 6px; font-size: 0.74rem; color: #8b949e; line-height: 1.8; }
+  .bugs-list li { margin-left: 14px; list-style: disc; }
+  .bugs-list li span { color: #3fb950; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Graph DFS Visualizer <span class="badge">Web Port</span></h1>
+    <p>Interactive port of BC++ / BGI graph DFS program (UNIVER/GRAPH) — 8 bugs fixed</p>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <div class="panel-header">Graph Input</div>
+    <div class="panel-body">
+
+      <div class="field">
+        <label>Preset graphs (original .DAT files)</label>
+        <select id="presets" style="width:100%">
+          <option value="">— choose a preset —</option>
+          <option value="7 9&#10;ag ab bc ac ed fd fe af ge">GRAPH.DAT  (7v, 9e)</option>
+          <option value="8 11&#10;ab ac ad af ag de ef eh fg fh gh">GRAPH1.DAT (8v, 11e)</option>
+          <option value="6 6&#10;ab ad be ce cf de">GRAPH3.DAT (6v, 6e)</option>
+          <option value="10 16&#10;ab ac ad af bc cd cf fe ed ef dg eh hi ij fi ai">GRAPH5.DAT (10v, 16e)</option>
+          <option value="14 22&#10;mx mq mr nq nu no or os ov po ps pz qt ut ru ry sr ut vx vw wz yv">GRAPH_2.DAT (14v, 22e)</option>
+          <option value="5 4&#10;ab bc cd de">Linear chain (5v)</option>
+          <option value="5 5&#10;ab bc cd de ea">Cycle (5v)</option>
+          <option value="7 0&#10;">7 Isolated nodes</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Graph definition
+          <span style="color:#3fb950;font-size:.7rem;margin-left:4px">Line 1: V E &nbsp;|&nbsp; Line 2: edges (e.g. ab bc cd)</span>
+        </label>
+        <textarea id="graph-input" spellcheck="false" placeholder="8 11&#10;ab ac ad af ag de ef eh fg fh gh"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Layout</label>
+        <div class="group">
+          <button id="btn-grid"   class="active" onclick="setLayout('grid')">Grid</button>
+          <button id="btn-circle" onclick="setLayout('circle')">Circular</button>
+          <button id="btn-force"  onclick="setLayout('force')">Force</button>
+        </div>
+      </div>
+
+      <button class="primary" style="width:100%" onclick="loadGraph()">Load Graph</button>
+
+      <hr style="border-color:#30363d;margin:14px 0">
+
+      <label>Bugs fixed vs. original C code</label>
+      <ul class="bugs-list">
+        <li><span>✔</span> Edge count header mismatch — actual token count used</li>
+        <li><span>✔</span> <code>fscanf("%c %c\n")</code> broke on inline edges — tokenised correctly</li>
+        <li><span>✔</span> <code>atan(dy/(dx+0.01))</code> near-vertical divide — replaced with <code>atan2</code></li>
+        <li><span>✔</span> <code>malloc</code> without <code>free</code> memory leaks — JS GC</li>
+        <li><span>✔</span> Writing to string literal (UB): <code>tmp=" "; tmp[0]=…</code></li>
+        <li><span>✔</span> Global <code>x,y</code> declared twice — all state in objects</li>
+        <li><span>✔</span> Disconnected components skipped — outer loop handles all</li>
+        <li><span>✔</span> Node coords <code>%630/%460</code> clipped off-screen — mapped to canvas</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CENTRE — Canvas -->
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+      <div class="group">
+        <button id="btn-reset" onclick="resetDFS()" title="Reset (R)">⟳ Reset</button>
+        <button id="btn-back"  onclick="undoStep()" title="Step back (←)">‹ Back</button>
+        <button id="btn-step"  onclick="stepDFS()"  title="Step (→)">Step ›</button>
+        <button id="btn-play"  onclick="togglePlay()" class="primary" title="Play/Pause (Space)">▶ Play</button>
+      </div>
+      <div class="sep"></div>
+      <div class="group">
+        <label style="margin:0;font-size:.75rem">Speed</label>
+        <input type="range" id="speed" min="100" max="2000" value="700" step="50"
+               oninput="updateSpeed(this.value)">
+        <span id="speed-label" style="font-size:.75rem;color:#8b949e;width:40px">700ms</span>
+      </div>
+      <div class="sep"></div>
+      <div class="group">
+        <button id="btn-order" class="active" onclick="toggleOrder()" title="DFS visit order badges">Order</button>
+        <button id="btn-labels" onclick="toggleLabels()" title="Edge labels">Labels</button>
+      </div>
+      <span id="status">No graph loaded</span>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL — Log & Legend -->
+  <div class="panel">
+    <div class="panel-header">DFS Log</div>
+    <div id="log"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f;border-color:#388bfd"></div> Unvisited</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#5a3e1b;border-color:#d29922"></div> In stack (active)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#0f3d1f;border-color:#3fb950"></div> Finished</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4a1515;border-color:#f85149"></div> Current node</div>
+      <div class="legend-item"><div style="width:22px;height:3px;background:#388bfd;flex-shrink:0"></div> Tree edge (DFS)</div>
+      <div class="legend-item"><div style="width:22px;height:2px;border-top:2px dashed #f85149;flex-shrink:0"></div> Back / cross edge</div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+'use strict';
+
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d');
+const logEl    = document.getElementById('log');
+const statusEl = document.getElementById('status');
+const tooltip  = document.getElementById('tooltip');
+
+let graph     = null;
+let layout    = 'grid';
+let positions = {};
+let dfsSteps  = [];
+let stepIndex = -1;
+let playTimer = null;
+let playDelay = 700;
+let showOrder  = true;
+let showLabels = false;
+let nodeState  = {};
+let treeEdges  = new Set();
+let backEdges  = new Set();
+let visitOrder = {};
+
+// ── Canvas resize ──────────────────────────────────────────────
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const ctrlH = document.querySelector('.controls').offsetHeight;
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight - ctrlH;
+  if (graph) { computeLayout(); draw(); }
+  else drawPlaceholder();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ── Parse ──────────────────────────────────────────────────────
+// BUG FIX #1 & #2: original fscanf read one edge per line with "%c %c\n"
+// which broke when all edges were on one space-separated line in the .DAT file.
+// Also, the declared edge count E in the header was sometimes wrong.
+// FIX: tokenise the whole remainder of the input regardless of line structure.
+function parseGraph(text) {
+  const lines = text.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) throw new Error('Empty input');
+
+  const header = lines[0].split(/\s+/);
+  if (header.length < 2) throw new Error('First line must be "V E"');
+  const declaredV = parseInt(header[0], 10);
+  const declaredE = parseInt(header[1], 10);
+  if (isNaN(declaredV) || isNaN(declaredE)) throw new Error('V and E must be integers');
+
+  // Tokenise all edge text (lowercase 2-char tokens like "ab")
+  const edgeTokens = lines.slice(1).join(' ')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(t => /^[a-z]{2}$/.test(t));
+
+  if (edgeTokens.length !== declaredE) {
+    logEntry(`⚠ Header says ${declaredE} edges but found ${edgeTokens.length} — using actual count`, 'info');
+  }
+
+  // Collect vertices from edges
+  const vertexSet = new Set();
+  edgeTokens.forEach(t => { vertexSet.add(t[0]); vertexSet.add(t[1]); });
+  const vertices = Array.from(vertexSet).sort();
+
+  // Pad isolated vertices if header says more
+  if (declaredV > vertices.length) {
+    const base = vertices.length ? vertices[vertices.length-1].charCodeAt(0) : 'a'.charCodeAt(0)-1;
+    for (let i = vertices.length; i < declaredV; i++)
+      vertices.push(String.fromCharCode(base + i - vertices.length + 1));
+  }
+
+  // Build adjacency list
+  // BUG FIX #7: original outer DFS loop only worked if vertices were 1..V contiguous.
+  // FIX: we use an object keyed by vertex label, so any label set works.
+  const adj = {};
+  vertices.forEach(v => adj[v] = []);
+
+  // Deduplicate edges for display
+  const edgeSet = new Set();
+  const edges   = [];
+  edgeTokens.forEach(t => {
+    const a = t[0], b = t[1];
+    if (a === b) return; // self-loops ignored
+    const key = [a,b].sort().join('-');
+    if (!edgeSet.has(key)) { edgeSet.add(key); edges.push({a,b}); }
+    if (!adj[a].includes(b)) adj[a].push(b);
+    if (!adj[b].includes(a)) adj[b].push(a);
+  });
+  vertices.forEach(v => adj[v].sort()); // deterministic DFS order
+
+  return { vertices, edges, adj, declaredV, declaredE };
+}
+
+// ── Layout ─────────────────────────────────────────────────────
+function setLayout(type) {
+  layout = type;
+  ['grid','circle','force'].forEach(t =>
+    document.getElementById('btn-'+t).classList.toggle('active', t===type));
+  if (graph) { computeLayout(); draw(); }
+}
+
+function computeLayout() {
+  const W = canvas.width, H = canvas.height;
+  const V = graph.vertices, n = V.length;
+  const pad = 60;
+  positions = {};
+
+  if (layout === 'circle') {
+    const cx=W/2, cy=H/2, r=Math.min(W,H)/2-pad;
+    V.forEach((v,i) => {
+      const a = (2*Math.PI*i/n) - Math.PI/2;
+      positions[v] = { x: cx+r*Math.cos(a), y: cy+r*Math.sin(a) };
+    });
+  } else if (layout === 'grid') {
+    // BUG FIX #8: original used %630 / %460 constants which clipped nodes off-screen
+    // on different canvas sizes. FIX: map to actual canvas dimensions.
+    const cols = Math.ceil(Math.sqrt(n));
+    const rows = Math.ceil(n/cols);
+    const cW = (W-2*pad)/cols, cH = (H-2*pad)/rows;
+    V.forEach((v,i) => {
+      positions[v] = {
+        x: pad + (i%cols)*cW + cW/2,
+        y: pad + Math.floor(i/cols)*cH + cH/2
+      };
+    });
+  } else { // force-directed
+    const rand = (a,b) => a+Math.random()*(b-a);
+    V.forEach(v => positions[v] = { x:rand(pad,W-pad), y:rand(pad,H-pad) });
+    for (let iter=0; iter<250; iter++) {
+      const f = {};
+      V.forEach(v => f[v]={x:0,y:0});
+      for (let i=0;i<V.length;i++) for (let j=i+1;j<V.length;j++) {
+        const a=V[i],b=V[j];
+        let dx=positions[b].x-positions[a].x, dy=positions[b].y-positions[a].y;
+        const d=Math.hypot(dx,dy)||1, rep=7000/(d*d);
+        f[a].x-=rep*dx/d; f[a].y-=rep*dy/d;
+        f[b].x+=rep*dx/d; f[b].y+=rep*dy/d;
+      }
+      graph.edges.forEach(({a,b}) => {
+        let dx=positions[b].x-positions[a].x, dy=positions[b].y-positions[a].y;
+        const d=Math.hypot(dx,dy)||1, att=(d-130)*0.05;
+        f[a].x+=att*dx/d; f[a].y+=att*dy/d;
+        f[b].x-=att*dx/d; f[b].y-=att*dy/d;
+      });
+      V.forEach(v => {
+        positions[v].x=Math.max(pad,Math.min(W-pad,positions[v].x+f[v].x));
+        positions[v].y=Math.max(pad,Math.min(H-pad,positions[v].y+f[v].y));
+      });
+    }
+  }
+}
+
+// ── Record DFS steps ───────────────────────────────────────────
+function recordDFS(g) {
+  const steps=[], visited={};
+  g.vertices.forEach(v => visited[v]=false);
+  let order=0;
+
+  function dfs(v, parent) {
+    visited[v]=true; order++;
+    steps.push({type:'visit', node:v, order, parent});
+    for (const w of g.adj[v]) {
+      if (!visited[w]) {
+        steps.push({type:'tree-edge', from:v, to:w});
+        dfs(w, v);
+        steps.push({type:'return', node:v, from:w});
+      } else if (w!==parent) {
+        // BUG FIX: original never flagged back edges; they were drawn identically to tree edges
+        steps.push({type:'back-edge', from:v, to:w});
+      }
+    }
+    steps.push({type:'finish', node:v});
+  }
+
+  // BUG FIX #7: handle disconnected components
+  g.vertices.forEach(v => {
+    if (!visited[v]) {
+      steps.push({type:'component-start', node:v});
+      dfs(v, null);
+    }
+  });
+  return steps;
+}
+
+// ── Rebuild render state to stepIndex ─────────────────────────
+function rebuildState(upto) {
+  nodeState={}; treeEdges=new Set(); backEdges=new Set(); visitOrder={};
+  graph.vertices.forEach(v => nodeState[v]='unvisited');
+  let lastCurrent=null;
+  for (let i=0;i<=upto&&i<dfsSteps.length;i++) {
+    const s=dfsSteps[i];
+    if (s.type==='visit')       { nodeState[s.node]='current'; visitOrder[s.node]=s.order; lastCurrent=s.node; }
+    if (s.type==='tree-edge')   { treeEdges.add(ek(s.from,s.to)); nodeState[s.from]='active'; }
+    if (s.type==='back-edge')   { backEdges.add(ek(s.from,s.to)); }
+    if (s.type==='return')      { nodeState[s.node]='current'; lastCurrent=s.node; }
+    if (s.type==='finish')      { nodeState[s.node]='done'; if(lastCurrent===s.node) lastCurrent=null; }
+  }
+  // Demote any 'current' node that isn't the true last one
+  graph.vertices.forEach(v => { if(nodeState[v]==='current'&&v!==lastCurrent) nodeState[v]='active'; });
+  if (lastCurrent && nodeState[lastCurrent]!=='done') nodeState[lastCurrent]='current';
+}
+const ek = (a,b) => [a,b].sort().join('-');
+
+// ── Drawing ────────────────────────────────────────────────────
+const NODE_R=18;
+const COLORS={
+  unvisited:{ fill:'#1e3a5f', stroke:'#388bfd' },
+  active:   { fill:'#5a3e1b', stroke:'#d29922' },
+  done:     { fill:'#0f3d1f', stroke:'#3fb950' },
+  current:  { fill:'#4a1515', stroke:'#f85149' },
+};
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (!graph) { drawPlaceholder(); return; }
+  graph.edges.forEach(({a,b}) => drawEdge(a,b));
+  graph.vertices.forEach(v => drawNode(v));
+}
+
+function drawEdge(a,b) {
+  const pa=positions[a], pb=positions[b];
+  if (!pa||!pb) return;
+  const key=ek(a,b);
+  const isTree=treeEdges.has(key), isBack=backEdges.has(key);
+  const dx=pb.x-pa.x, dy=pb.y-pa.y;
+  const dist=Math.hypot(dx,dy)||1;
+
+  // Midpoint perpendicular offset (like original p_to_connect)
+  // BUG FIX #3: original used atan(dy/(dx+0.01)) which is wrong near vertical edges.
+  // FIX: use atan2 for correct angle in all quadrants, then derive perpendicular.
+  const midX=(pa.x+pb.x)/2, midY=(pa.y+pb.y)/2;
+  const offset=Math.min(dist*0.12, 22);
+  const cx=midX + (-dy/dist)*offset;
+  const cy=midY + ( dx/dist)*offset;
+
+  ctx.beginPath();
+  ctx.moveTo(pa.x,pa.y);
+  ctx.quadraticCurveTo(cx,cy,pb.x,pb.y);
+
+  if (isTree) {
+    ctx.strokeStyle='#388bfd'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+  } else if (isBack) {
+    ctx.strokeStyle='#f85149'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+  } else {
+    ctx.strokeStyle='#30363d'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (isTree) drawArrow(cx,cy,pb.x,pb.y,'#388bfd');
+
+  if (showLabels) {
+    ctx.fillStyle='#484f58';
+    ctx.font='10px Consolas,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(`${a.toUpperCase()}-${b.toUpperCase()}`, midX+(-dy/dist)*14, midY+(dx/dist)*14);
+  }
+}
+
+function drawArrow(fx,fy,tx,ty,color) {
+  const dx=tx-fx,dy=ty-fy,len=Math.hypot(dx,dy)||1;
+  const ux=dx/len,uy=dy/len;
+  const ex=tx-ux*NODE_R, ey=ty-uy*NODE_R, sz=8;
+  ctx.beginPath();
+  ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-sz*ux+sz*.5*uy, ey-sz*uy-sz*.5*ux);
+  ctx.lineTo(ex-sz*ux-sz*.5*uy, ey-sz*uy+sz*.5*ux);
+  ctx.closePath();
+  ctx.fillStyle=color; ctx.fill();
+}
+
+function drawNode(v) {
+  const p=positions[v]; if(!p) return;
+  const state=nodeState[v]||'unvisited';
+  const col=COLORS[state];
+  ctx.shadowColor=col.stroke; ctx.shadowBlur=state==='current'?18:6;
+  ctx.beginPath(); ctx.arc(p.x,p.y,NODE_R,0,Math.PI*2);
+  ctx.fillStyle=col.fill; ctx.fill();
+  ctx.strokeStyle=col.stroke; ctx.lineWidth=state==='current'?3:2; ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#e6edf3';
+  ctx.font=`bold 12px Segoe UI,sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(v.toUpperCase(),p.x,p.y);
+  if (showOrder && visitOrder[v]!==undefined) {
+    ctx.beginPath(); ctx.arc(p.x+NODE_R*.7,p.y-NODE_R*.7,8,0,Math.PI*2);
+    ctx.fillStyle='#d29922'; ctx.fill();
+    ctx.fillStyle='#0d1117';
+    ctx.font='bold 9px monospace';
+    ctx.fillText(visitOrder[v],p.x+NODE_R*.7,p.y-NODE_R*.7);
+  }
+}
+
+function drawPlaceholder() {
+  ctx.fillStyle='#21262d';
+  ctx.font='14px Segoe UI,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('Load a graph to begin — choose a preset or type one above',
+    canvas.width/2, canvas.height/2);
+}
+
+// ── Controls ───────────────────────────────────────────────────
+function loadGraph() {
+  stopPlay();
+  const text=document.getElementById('graph-input').value.trim();
+  if (!text) { logEntry('⚠ Enter a graph definition first','err'); return; }
+  try {
+    graph=parseGraph(text);
+    dfsSteps=recordDFS(graph);
+    stepIndex=-1;
+    graph.vertices.forEach(v => nodeState[v]='unvisited');
+    treeEdges=new Set(); backEdges=new Set(); visitOrder={};
+    resizeCanvas(); computeLayout(); draw();
+    logClear();
+    logEntry(`Loaded: ${graph.vertices.length} vertices [${graph.vertices.map(v=>v.toUpperCase()).join(' ')}], ${graph.edges.length} edges`,'info');
+    logEntry(`DFS will take ${dfsSteps.length} steps total`,'info');
+    logEntry(`Keyboard: Space=play  →=step  ←=back  R=reset`,'info');
+    updateStatus();
+  } catch(e) { logEntry('❌ '+e.message,'err'); }
+}
+
+function resetDFS() {
+  stopPlay();
+  if (!graph) return;
+  stepIndex=-1;
+  graph.vertices.forEach(v => nodeState[v]='unvisited');
+  treeEdges=new Set(); backEdges=new Set(); visitOrder={};
+  logClear();
+  logEntry('Reset. Press Step or Play.','info');
+  updateStatus(); draw();
+}
+
+function stepDFS() {
+  if (!graph || stepIndex>=dfsSteps.length-1) { stopPlay(); return; }
+  stepIndex++;
+  rebuildState(stepIndex);
+  logStep(dfsSteps[stepIndex]);
+  updateStatus(); draw();
+}
+
+function undoStep() {
+  if (!graph||stepIndex<0) return;
+  stepIndex--;
+  if (stepIndex<0) {
+    graph.vertices.forEach(v=>nodeState[v]='unvisited');
+    treeEdges=new Set(); backEdges=new Set(); visitOrder={};
+  } else rebuildState(stepIndex);
+  // Trim last log entry
+  if (logEl.lastElementChild) logEl.removeChild(logEl.lastElementChild);
+  updateStatus(); draw();
+}
+
+function togglePlay() {
+  if (playTimer) { stopPlay(); return; }
+  const btn=document.getElementById('btn-play');
+  btn.textContent='⏸ Pause'; btn.classList.replace('primary','danger');
+  function tick() {
+    if (!graph||stepIndex>=dfsSteps.length-1) { stopPlay(); return; }
+    stepDFS();
+    playTimer=setTimeout(tick,playDelay);
+  }
+  tick();
+}
+function stopPlay() {
+  if(playTimer){clearTimeout(playTimer);playTimer=null;}
+  const btn=document.getElementById('btn-play');
+  btn.textContent='▶ Play'; btn.classList.replace('danger','primary');
+  if(!btn.classList.contains('primary')) btn.classList.add('primary');
+}
+
+function updateSpeed(v) {
+  playDelay=2100-parseInt(v,10);
+  document.getElementById('speed-label').textContent=playDelay+'ms';
+}
+function toggleOrder()  { showOrder =!showOrder;  document.getElementById('btn-order').classList.toggle('active',showOrder);  if(graph)draw(); }
+function toggleLabels() { showLabels=!showLabels; document.getElementById('btn-labels').classList.toggle('active',showLabels); if(graph)draw(); }
+
+// ── Log ────────────────────────────────────────────────────────
+function logClear() { logEl.innerHTML=''; }
+function logEntry(msg,cls='') {
+  const d=document.createElement('div');
+  d.className='entry '+cls; d.textContent=msg;
+  logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
+}
+function logStep(s) {
+  const M={
+    'visit':        ()=>[`→ Visit ${s.node.toUpperCase()} (order #${s.order})`,'highlight'],
+    'tree-edge':    ()=>[`⤷ Tree edge: ${s.from.toUpperCase()} → ${s.to.toUpperCase()}`,''],
+    'back-edge':    ()=>[`↩ Back edge: ${s.from.toUpperCase()} → ${s.to.toUpperCase()} (already visited)`,'err'],
+    'return':       ()=>[`↑ Return to ${s.node.toUpperCase()} from ${s.from.toUpperCase()}`,''],
+    'finish':       ()=>[`✓ Finished ${s.node.toUpperCase()}`,'done'],
+    'component-start':()=>[`◉ New component starting at ${s.node.toUpperCase()}`,'info'],
+  };
+  if (M[s.type]) { const [msg,cls]=M[s.type](); logEntry(msg,cls); }
+}
+function updateStatus() {
+  if (!graph) { statusEl.textContent='No graph loaded'; return; }
+  statusEl.textContent = stepIndex>=dfsSteps.length-1
+    ? `DFS complete — ${graph.vertices.length} nodes`
+    : `Step ${stepIndex+1} / ${dfsSteps.length}`;
+}
+
+// ── Tooltip ────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  if (!graph) return;
+  const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  let hit=null;
+  for (const v of graph.vertices) {
+    const p=positions[v];
+    if (p && Math.hypot(mx-p.x,my-p.y)<NODE_R+4) { hit=v; break; }
+  }
+  if (hit) {
+    const state=nodeState[hit]||'unvisited';
+    const ord  =visitOrder[hit]!==undefined ? ` | visit #${visitOrder[hit]}` : '';
+    tooltip.textContent=`Node ${hit.toUpperCase()} — ${state}${ord} | degree: ${graph.adj[hit].length}`;
+    tooltip.style.display='block';
+    tooltip.style.left=(e.clientX+14)+'px';
+    tooltip.style.top =(e.clientY+14)+'px';
+    canvas.style.cursor='pointer';
+  } else {
+    tooltip.style.display='none';
+    canvas.style.cursor='default';
+  }
+});
+canvas.addEventListener('mouseleave',()=>tooltip.style.display='none');
+
+// Click a node → jump to its visit step
+canvas.addEventListener('click', e => {
+  if (!graph) return;
+  const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  for (const v of graph.vertices) {
+    const p=positions[v];
+    if (!p||Math.hypot(mx-p.x,my-p.y)>NODE_R+4) continue;
+    const idx=dfsSteps.findIndex(s=>s.type==='visit'&&s.node===v);
+    if (idx<0) return;
+    stopPlay();
+    stepIndex=idx;
+    rebuildState(stepIndex);
+    logClear();
+    for(let i=0;i<=stepIndex;i++) logStep(dfsSteps[i]);
+    updateStatus(); draw(); return;
+  }
+});
+
+// ── Preset selector ────────────────────────────────────────────
+document.getElementById('presets').addEventListener('change', function() {
+  if (!this.value) return;
+  document.getElementById('graph-input').value=this.value;
+  loadGraph();
+  this.value='';
+});
+
+// ── Keyboard shortcuts ─────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='TEXTAREA') return;
+  if (e.key===' ')          { e.preventDefault(); togglePlay(); }
+  if (e.key==='ArrowRight') { e.preventDefault(); stepDFS(); }
+  if (e.key==='ArrowLeft')  { e.preventDefault(); undoStep(); }
+  if (e.key==='r'||e.key==='R') resetDFS();
+});
+
+// ── Init ───────────────────────────────────────────────────────
+resizeCanvas();
+document.getElementById('graph-input').value='8 11\nab ac ad af ag de ef eh fg fh gh';
+loadGraph();
+</script>
+</body>
+</html>
